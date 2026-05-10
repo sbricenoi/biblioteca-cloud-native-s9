@@ -1,0 +1,77 @@
+# Schema GraphQL unificado del BFF - Sistema de Biblioteca
+# El BFF orquesta las llamadas a las funciones serverless (REST)
+# y las expone como un API GraphQL unificado.
+
+type Query {
+    # Consultas de Usuarios
+    usuarios: [Usuario]
+    usuario(id: ID!): Usuario
+
+    # Consultas de Préstamos
+    prestamos: [Prestamo]
+    prestamo(id: ID!): Prestamo
+    prestamosPorUsuario(idUsuario: ID!): [Prestamo]
+}
+
+type Mutation {
+    # Mutaciones de Usuarios
+    crearUsuario(
+        nombre: String!
+        apellido: String!
+        email: String!
+        rut: String!
+        telefono: String
+        estado: String
+    ): Usuario
+
+    actualizarUsuario(
+        id: ID!
+        nombre: String
+        apellido: String
+        email: String
+        rut: String
+        telefono: String
+        estado: String
+    ): Usuario
+
+    eliminarUsuario(id: ID!): Boolean
+
+    # Mutaciones de Préstamos
+    crearPrestamo(
+        idUsuario: ID!
+        idLibro: ID!
+        fechaDevolucionEsperada: String!
+    ): Prestamo
+
+    actualizarPrestamo(
+        id: ID!
+        idUsuario: ID
+        idLibro: ID
+        fechaDevolucionEsperada: String
+        estado: String
+    ): Prestamo
+
+    devolverPrestamo(id: ID!): Prestamo
+    eliminarPrestamo(id: ID!): Boolean
+}
+
+type Usuario {
+    id: ID
+    nombre: String
+    apellido: String
+    email: String
+    rut: String
+    telefono: String
+    fechaRegistro: String
+    estado: String
+}
+
+type Prestamo {
+    id: ID
+    idUsuario: ID
+    idLibro: ID
+    fechaPrestamo: String
+    fechaDevolucionEsperada: String
+    fechaDevolucionReal: String
+    estado: String
+}

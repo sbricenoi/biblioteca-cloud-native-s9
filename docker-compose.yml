@@ -1,0 +1,148 @@
+version: '3.8'
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Sistema de Biblioteca - Docker Compose v2.0
+# Semana 9 - Evaluación Final Transversal - DSY2207
+#
+# Base de datos: Oracle Cloud (ADB) vía wallet SSL
+# Arquitectura:
+#   rabbitmq             → Message broker  (5672 / 15672 UI)
+#   funcion-usuarios     → FaaS REST+GraphQL (8081)
+#   funcion-prestamos    → FaaS REST+GraphQL (8082)
+#   microservicio-bff    → BFF REST+GraphQL  (8080)
+#   microservicio-eventos→ Consumidor eventos (8083)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Variables de conexión Oracle Cloud (reutilizadas en todos los servicios con BD)
+x-oracle-env: &oracle-env
+  DB_URL: "jdbc:oracle:thin:@biblioteca_high"
+  DB_USER: "ADMIN"
+  DB_PASSWORD: "#Ng3naUQa*THhTd"
+  TNS_ADMIN: "/app/wallet"
+  ORACLE_NET_TNS_ADMIN: "/app/wallet"
+  JAVA_TOOL_OPTIONS: >-
+    -Doracle.net.tns_admin=/app/wallet
+    -Djavax.net.ssl.trustStore=/app/wallet/truststore.jks
+    -Djavax.net.ssl.trustStoreType=JKS
+    -Djavax.net.ssl.trustStorePassword=#Ng3naUQa*THhTd
+    -Djavax.net.ssl.keyStore=/app/wallet/keystore.jks
+    -Djavax.net.ssl.keyStoreType=JKS
+    -Djavax.net.ssl.keyStorePassword=#Ng3naUQa*THhTd
+    -Doracle.net.ssl_server_dn_match=true
+
+services:
+
+  # ─── RabbitMQ (Message Broker) ────────────────────────────────────────────
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: biblioteca-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - biblioteca-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  # ─── Función Serverless: Usuarios (REST + GraphQL) ────────────────────────
+  funcion-usuarios:
+    build:
+      context: ./funcion-usuarios
+      dockerfile: Dockerfile
+    container_name: biblioteca-funcion-usuarios
+    environment:
+      <<: *oracle-env
+      PORT: "8081"
+      RABBITMQ_HOST: "rabbitmq"
+      RABBITMQ_PORT: "5672"
+      RABBITMQ_USER: "guest"
+      RABBITMQ_PASSWORD: "guest"
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./wallet:/app/wallet:ro
+    networks:
+      - biblioteca-network
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: on-failure
+
+  # ─── Función Serverless: Préstamos (REST + GraphQL) ───────────────────────
+  funcion-prestamos:
+    build:
+      context: ./funcion-prestamos
+      dockerfile: Dockerfile
+    container_name: biblioteca-funcion-prestamos
+    environment:
+      <<: *oracle-env
+      PORT: "8082"
+      RABBITMQ_HOST: "rabbitmq"
+      RABBITMQ_PORT: "5672"
+      RABBITMQ_USER: "guest"
+      RABBITMQ_PASSWORD: "guest"
+    ports:
+      - "8082:8082"
+    volumes:
+      - ./wallet:/app/wallet:ro
+    networks:
+      - biblioteca-network
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: on-failure
+
+  # ─── Microservicio BFF (REST + GraphQL unificado) ─────────────────────────
+  microservicio-bff:
+    build:
+      context: ./microservicio-bff
+      dockerfile: Dockerfile
+    container_name: biblioteca-bff
+    environment:
+      PORT: "8080"
+      USUARIOS_SERVICE_URL: "http://funcion-usuarios:8081"
+      PRESTAMOS_SERVICE_URL: "http://funcion-prestamos:8082"
+    ports:
+      - "8080:8080"
+    networks:
+      - biblioteca-network
+    depends_on:
+      - funcion-usuarios
+      - funcion-prestamos
+    restart: on-failure
+
+  # ─── Microservicio de Eventos (Consumidor RabbitMQ) ───────────────────────
+  microservicio-eventos:
+    build:
+      context: ./microservicio-eventos
+      dockerfile: Dockerfile
+    container_name: biblioteca-eventos
+    environment:
+      <<: *oracle-env
+      PORT: "8083"
+      RABBITMQ_HOST: "rabbitmq"
+      RABBITMQ_PORT: "5672"
+      RABBITMQ_USER: "guest"
+      RABBITMQ_PASSWORD: "guest"
+    ports:
+      - "8083:8083"
+    volumes:
+      - ./wallet:/app/wallet:ro
+    networks:
+      - biblioteca-network
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: on-failure
+
+# ─── Red ──────────────────────────────────────────────────────────────────────
+networks:
+  biblioteca-network:
+    driver: bridge

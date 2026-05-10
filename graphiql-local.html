@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <title>GraphiQL - Sistema Biblioteca</title>
+  <meta charset="utf-8" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { height: 100vh; display: flex; flex-direction: column; font-family: sans-serif; }
+    #header {
+      background: #1a1a2e;
+      color: white;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      font-size: 14px;
+    }
+    #header h1 { font-size: 16px; color: #e94560; }
+    #header select, #header button {
+      padding: 5px 10px;
+      border-radius: 4px;
+      border: 1px solid #444;
+      background: #16213e;
+      color: white;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    #header button { background: #e94560; border: none; }
+    #header button:hover { background: #c73652; }
+    #main { display: flex; flex: 1; overflow: hidden; }
+    #editor-panel { display: flex; flex-direction: column; width: 50%; border-right: 2px solid #333; }
+    #query-section { flex: 1; display: flex; flex-direction: column; }
+    #variables-section { height: 150px; border-top: 1px solid #333; }
+    label { background: #2d2d2d; color: #aaa; padding: 4px 12px; font-size: 12px; display: block; }
+    textarea {
+      flex: 1; width: 100%; resize: none; background: #1e1e1e; color: #d4d4d4;
+      border: none; padding: 12px; font-family: 'Courier New', monospace; font-size: 14px;
+      outline: none; height: 100%;
+    }
+    #result-panel { width: 50%; display: flex; flex-direction: column; }
+    #result {
+      flex: 1; background: #1e1e1e; color: #d4d4d4; padding: 12px;
+      font-family: 'Courier New', monospace; font-size: 13px;
+      overflow: auto; white-space: pre-wrap; word-break: break-word;
+    }
+    .status-bar { background: #2d2d2d; color: #aaa; padding: 4px 12px; font-size: 12px; }
+    .key { color: #9cdcfe; }
+    .str { color: #ce9178; }
+    .num { color: #b5cea8; }
+    .bool { color: #569cd6; }
+    .null { color: #569cd6; }
+  </style>
+</head>
+<body>
+<div id="header">
+  <h1>⚡ GraphiQL — Sistema Biblioteca</h1>
+  <label style="background:none;color:#aaa;padding:0">Endpoint:</label>
+  <select id="endpoint">
+    <option value="http://localhost:8080/graphql">BFF :8080 (unificado)</option>
+    <option value="http://localhost:8081/graphql">FaaS Usuarios :8081</option>
+    <option value="http://localhost:8082/graphql">FaaS Préstamos :8082</option>
+  </select>
+  <button onclick="ejecutar()">▶ Ejecutar (Ctrl+Enter)</button>
+  <span id="status" style="color:#aaa;font-size:12px"></span>
+</div>
+
+<div id="main">
+  <div id="editor-panel">
+    <div id="query-section" style="display:flex;flex-direction:column">
+      <label>📝 Query / Mutation</label>
+      <textarea id="query" spellcheck="false">query {
+  usuarios {
+    id
+    nombre
+    apellido
+    email
+    estado
+  }
+}</textarea>
+    </div>
+    <div id="variables-section" style="display:flex;flex-direction:column">
+      <label>📦 Variables (JSON)</label>
+      <textarea id="variables" spellcheck="false">{}</textarea>
+    </div>
+  </div>
+
+  <div id="result-panel">
+    <div class="status-bar" id="result-status">Resultado aparecerá aquí</div>
+    <pre id="result">// Selecciona un query de los ejemplos o escribe uno propio
+// Luego presiona ▶ Ejecutar o Ctrl+Enter</pre>
+  </div>
+</div>
+
+<!-- Panel de ejemplos flotante -->
+<script>
+const ejemplos = [
+  { label: "📋 Listar todos los usuarios", endpoint: "http://localhost:8080/graphql", query: `query {\n  usuarios {\n    id\n    nombre\n    apellido\n    email\n    estado\n  }\n}` },
+  { label: "🔍 Obtener usuario por ID", endpoint: "http://localhost:8080/graphql", query: `query {\n  usuario(id: "2") {\n    id\n    nombre\n    apellido\n    email\n    rut\n    telefono\n    estado\n  }\n}` },
+  { label: "📋 Listar todos los préstamos", endpoint: "http://localhost:8080/graphql", query: `query {\n  prestamos {\n    id\n    idUsuario\n    idLibro\n    fechaPrestamo\n    fechaDevolucionEsperada\n    estado\n  }\n}` },
+  { label: "🔍 Préstamos de un usuario", endpoint: "http://localhost:8080/graphql", query: `query {\n  prestamosPorUsuario(idUsuario: "2") {\n    id\n    idLibro\n    fechaPrestamo\n    estado\n  }\n}` },
+  { label: "➕ Crear usuario (mutation)", endpoint: "http://localhost:8080/graphql", query: `mutation {\n  crearUsuario(\n    nombre: "Carlos"\n    apellido: "Gomez"\n    email: "carlos.gomez@test.cl"\n    rut: "11223344-5"\n    telefono: "+56911223344"\n  ) {\n    id\n    nombre\n    email\n    estado\n  }\n}` },
+  { label: "📚 Crear préstamo (→ evento)", endpoint: "http://localhost:8080/graphql", query: `mutation {\n  crearPrestamo(\n    idUsuario: "2"\n    idLibro: "1"\n    fechaDevolucionEsperada: "2026-06-30"\n  ) {\n    id\n    idUsuario\n    idLibro\n    fechaPrestamo\n    estado\n  }\n}` },
+  { label: "✅ Devolver libro (→ evento)", endpoint: "http://localhost:8080/graphql", query: `mutation {\n  devolverPrestamo(id: "11") {\n    id\n    estado\n    fechaDevolucionReal\n  }\n}` },
+  { label: "🗑 Eliminar usuario (→ evento)", endpoint: "http://localhost:8080/graphql", query: `mutation {\n  eliminarUsuario(id: "3")\n}` },
+  { label: "── FaaS DIRECTO ── Usuarios", endpoint: "http://localhost:8081/graphql", query: `query {\n  usuarios {\n    id\n    nombre\n    apellido\n    estado\n  }\n}` },
+  { label: "── FaaS DIRECTO ── Préstamos", endpoint: "http://localhost:8082/graphql", query: `query {\n  prestamos {\n    id\n    idUsuario\n    idLibro\n    estado\n  }\n}` },
+];
+
+// Crear selector de ejemplos
+const header = document.getElementById('header');
+const sel = document.createElement('select');
+sel.style.cssText = 'padding:5px 10px;border-radius:4px;border:1px solid #444;background:#16213e;color:white;cursor:pointer;font-size:13px;max-width:220px';
+sel.innerHTML = '<option value="">— Ejemplos rápidos —</option>';
+ejemplos.forEach((e,i) => sel.innerHTML += `<option value="${i}">${e.label}</option>`);
+sel.onchange = function() {
+  if (this.value === '') return;
+  const e = ejemplos[parseInt(this.value)];
+  document.getElementById('query').value = e.query;
+  document.getElementById('endpoint').value = e.endpoint;
+  this.value = '';
+};
+header.insertBefore(sel, header.children[4]);
+
+// Ejecutar query
+async function ejecutar() {
+  const url = document.getElementById('endpoint').value;
+  const query = document.getElementById('query').value.trim();
+  const varsText = document.getElementById('variables').value.trim();
+  const statusEl = document.getElementById('status');
+  const resultEl = document.getElementById('result');
+  const resultStatusEl = document.getElementById('result-status');
+
+  let variables = {};
+  try { variables = varsText && varsText !== '{}' ? JSON.parse(varsText) : {}; }
+  catch(e) { resultEl.textContent = '❌ Variables JSON inválido: ' + e.message; return; }
+
+  statusEl.textContent = '⏳ Ejecutando...';
+  const t = Date.now();
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, variables })
+    });
+    const data = await res.json();
+    const ms = Date.now() - t;
+    statusEl.textContent = `✅ ${ms}ms`;
+    resultStatusEl.textContent = `✅ Respuesta en ${ms}ms — ${url}`;
+    resultEl.innerHTML = syntaxHighlight(JSON.stringify(data, null, 2));
+  } catch(e) {
+    statusEl.textContent = '❌ Error';
+    resultStatusEl.textContent = '❌ Error de conexión';
+    resultEl.textContent = '❌ Error: ' + e.message + '\n\nVerifica que el servicio esté corriendo.';
+  }
+}
+
+function syntaxHighlight(json) {
+  json = json.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function(m) {
+    let cls = 'num';
+    if (/^"/.test(m)) cls = /:$/.test(m) ? 'key' : 'str';
+    else if (/true|false/.test(m)) cls = 'bool';
+    else if (/null/.test(m)) cls = 'null';
+    return `<span class="${cls}">${m}</span>`;
+  });
+}
+
+// Ctrl+Enter para ejecutar
+document.addEventListener('keydown', e => { if (e.ctrlKey && e.key === 'Enter') ejecutar(); });
+</script>
+</body>
+</html>

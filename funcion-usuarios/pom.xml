@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.biblioteca</groupId>
+    <artifactId>funcion-usuarios</artifactId>
+    <version>2.0.0</version>
+    <packaging>jar</packaging>
+
+    <properties>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <dependencies>
+        <!-- Spark Java - Framework HTTP ligero para FaaS -->
+        <dependency>
+            <groupId>com.sparkjava</groupId>
+            <artifactId>spark-core</artifactId>
+            <version>2.9.4</version>
+        </dependency>
+
+        <!-- Gson - Serialización JSON -->
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.10.1</version>
+        </dependency>
+
+        <!-- GraphQL Java - Motor GraphQL para el endpoint /graphql -->
+        <dependency>
+            <groupId>com.graphql-java</groupId>
+            <artifactId>graphql-java</artifactId>
+            <version>21.5</version>
+        </dependency>
+
+        <!-- Oracle JDBC Driver -->
+        <dependency>
+            <groupId>com.oracle.database.jdbc</groupId>
+            <artifactId>ojdbc8</artifactId>
+            <version>21.9.0.0</version>
+        </dependency>
+
+        <!-- Oracle PKI para wallet SSL -->
+        <dependency>
+            <groupId>com.oracle.database.security</groupId>
+            <artifactId>oraclepki</artifactId>
+            <version>21.9.0.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.oracle.database.security</groupId>
+            <artifactId>osdt_core</artifactId>
+            <version>21.9.0.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.oracle.database.security</groupId>
+            <artifactId>osdt_cert</artifactId>
+            <version>21.9.0.0</version>
+        </dependency>
+
+        <!-- HikariCP - Pool de conexiones -->
+        <dependency>
+            <groupId>com.zaxxer</groupId>
+            <artifactId>HikariCP</artifactId>
+            <version>5.0.1</version>
+        </dependency>
+
+        <!-- RabbitMQ AMQP Client - Publicación de eventos -->
+        <dependency>
+            <groupId>com.rabbitmq</groupId>
+            <artifactId>amqp-client</artifactId>
+            <version>5.20.0</version>
+        </dependency>
+
+        <!-- Logging -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>2.0.9</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.5.1</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <createDependencyReducedPom>true</createDependencyReducedPom>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>com.biblioteca.usuarios.UsuariosHandler</mainClass>
+                                </transformer>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                            </transformers>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
