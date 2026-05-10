@@ -57,8 +57,8 @@
   <label style="background:none;color:#aaa;padding:0">Endpoint:</label>
   <select id="endpoint">
     <option value="/graphql">BFF :8080 (unificado)</option>
-    <option value="http://localhost:8081/graphql">FaaS Usuarios :8081</option>
-    <option value="http://localhost:8082/graphql">FaaS Préstamos :8082</option>
+    <option value="/proxy/usuarios/graphql">FaaS Usuarios :8081 (via proxy)</option>
+    <option value="/proxy/prestamos/graphql">FaaS Préstamos :8082 (via proxy)</option>
   </select>
   <button onclick="ejecutar()">▶ Ejecutar (Ctrl+Enter)</button>
   <span id="status" style="color:#aaa;font-size:12px"></span>
@@ -102,8 +102,8 @@ const ejemplos = [
   { label: "📚 Crear préstamo (→ evento)", endpoint: "/graphql", query: `mutation {\n  crearPrestamo(\n    idUsuario: "2"\n    idLibro: "3"\n    fechaDevolucionEsperada: "2026-06-30"\n  ) {\n    id\n    idUsuario\n    idLibro\n    fechaPrestamo\n    estado\n  }\n}` },
   { label: "✅ Devolver libro (→ evento)", endpoint: "/graphql", query: `mutation {\n  devolverPrestamo(id: "12") {\n    id\n    estado\n    fechaDevolucionReal\n  }\n}` },
   { label: "🗑 Eliminar usuario (→ evento)", endpoint: "/graphql", query: `mutation {\n  eliminarUsuario(id: "7")\n}` },
-  { label: "── FaaS DIRECTO ── Usuarios", endpoint: "http://localhost:8081/graphql", query: `query {\n  usuarios {\n    id\n    nombre\n    apellido\n    estado\n  }\n}` },
-  { label: "── FaaS DIRECTO ── Préstamos", endpoint: "http://localhost:8082/graphql", query: `query {\n  prestamos {\n    id\n    idUsuario\n    idLibro\n    estado\n  }\n}` },
+  { label: "── FaaS DIRECTO ── Usuarios", endpoint: "/proxy/usuarios/graphql", query: `query {\n  usuarios {\n    id\n    nombre\n    apellido\n    estado\n  }\n}` },
+  { label: "── FaaS DIRECTO ── Préstamos", endpoint: "/proxy/prestamos/graphql", query: `query {\n  prestamos {\n    id\n    idUsuario\n    idLibro\n    estado\n  }\n}` },
 ];
 
 // Crear selector de ejemplos
